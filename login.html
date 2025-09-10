@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Entrar • GestorBase</title>
+  <style>
+    body{margin:0;min-height:100vh;display:grid;place-items:center;
+      background:radial-gradient(1000px 700px at 10% -10%, #132338 0%, #0b0f14 60%);
+      font:14px system-ui;color:#e6edf3}
+    .card{width:min(420px,94vw);background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);
+      border-radius:16px;box-shadow:0 12px 28px rgba(0,0,0,.35);padding:18px}
+    input{width:100%;margin:6px 0;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.12);
+      background:#0a111a;color:#e6edf3;outline:none}
+    button{width:100%;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:#0d6bdd;color:#fff;font-weight:700;cursor:pointer}
+    .muted{color:#8aa2b8;font-size:12px}
+    .link{background:transparent;color:#4da3ff;border-color:rgba(77,163,255,.4)}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1 style="margin:0 0 4px">Entrar</h1>
+    <div class="muted">Use seu email e senha para acessar.</div>
+
+    <form id="f-login" style="margin-top:12px">
+      <input id="lg-email" type="email" placeholder="Email" required />
+      <input id="lg-pass" type="password" placeholder="Senha (≥ 8)" minlength="8" required />
+      <button>Entrar</button>
+      <button type="button" id="btn-reset" class="link" style="margin-top:8px">Esqueci a senha</button>
+      <div id="lg-msg" class="muted" style="margin-top:6px"></div>
+    </form>
+
+    <hr style="border:none;border-top:1px solid rgba(255,255,255,.08);margin:14px 0">
+
+    <h2 style="margin:0 0 4px;font-size:16px">Criar conta</h2>
+    <form id="f-reg">
+      <input id="rg-name" placeholder="Nome (opcional)" />
+      <input id="rg-email" type="email" placeholder="Email" required />
+      <input id="rg-pass" type="password" placeholder="Senha (≥ 8)" minlength="8" required />
+      <button>Cadastrar</button>
+      <div id="rg-msg" class="muted" style="margin-top:6px"></div>
+    </form>
+
+    <button id="btn-ir-app" style="display:none;margin-top:10px">Abrir app</button>
+  </div>
+
+  <!-- Firebase (ESM) -->
+  <script type="module">
+    // === Suas chaves (do jeito que você enviou) ===
+    const firebaseConfig = {
+      apiKey: "AIzaSyA1nysatTzMGEwqiie5Yzm7vmhB4_LCZfY",
+      authDomain: "viabilidae-financeira.firebaseapp.com",
+      projectId: "viabilidae-financeira",
+      storageBucket: "viabilidae-financeira.firebasestorage.app",
+      messagingSenderId: "101170715584",
+      appId: "1:101170715584:web:be08e066365e1fb9d80625",
+      measurementId: "G-HV6QKXLLCD"
+    };
+
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import {
+      getAuth, onAuthStateChanged, signInWithEmailAndPassword,
+      createUserWithEmailAndPassword, updateProfile, sendPasswordResetEmail
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    initializeApp(firebaseConfig);
+    const auth = getAuth();
+
+    const $ = s => document.querySelector(s);
+    const lgForm = $('#f-login'), lgEmail = $('#lg-email'), lgPass = $('#lg-pass'), lgMsg = $('#lg-msg');
+    const rgForm = $('#f-reg'), rgName = $('#rg-name'), rgEmail = $('#rg-email'), rgPass = $('#rg-pass'), rgMsg = $('#rg-msg');
+    const btnReset = $('#btn-reset'), btnIrApp = $('#btn-ir-app');
+
+    onAuthStateChanged(auth, (user)=>{ btnIrApp.style.display = user ? '' : 'none'; });
+    btnIrApp.onclick = ()=> location.href = "teste8.html";
+
+    lgForm.addEventListener('submit', async (e)=>{
+      e.preventDefault(); lgMsg.textContent = "Entrando...";
+      try{
+        await signInWithEmailAndPassword(auth, lgEmail.value.trim(), lgPass.value);
+        location.href = "teste8.html";
+      }catch(err){ lgMsg.textContent = "Erro: " + (err.code || err.message); }
+    });
+
+    rgForm.addEventListener('submit', async (e)=>{
+      e.preventDefault(); rgMsg.textContent = "Criando...";
+      try{
+        const cred = await createUserWithEmailAndPassword(auth, rgEmail.value.trim(), rgPass.value);
+        if (rgName.value.trim()) await updateProfile(cred.user, { displayName: rgName.value.trim() });
+        location.href = "app.html";
+      }catch(err){ rgMsg.textContent = "Erro: " + (err.code || err.message); }
+    });
+
+    btnReset.addEventListener('click', async ()=>{
+      const email = prompt("Digite seu email para redefinir a senha:");
+      if (!email) return;
+      try{ await sendPasswordResetEmail(auth, email.trim()); alert("Email enviado!"); }
+      catch(err){ alert("Erro: " + (err.code || err.message)); }
+    });
+  </script>
+</body>
+</html>

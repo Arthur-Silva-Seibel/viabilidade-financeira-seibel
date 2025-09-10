@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<title>Viabilidade Financeira — Investimentos item a item, DRE, VPL & Payback</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="Ferramenta leve para viabilidade: investimentos item a item, produtos, impostos, MO, fixos, DRE, TMA, VPL, paybacks e IA." />
+<style>
+  :root{
+    --bg:#0d6bdd; --card:#0f1622; --muted:#8aa2b8; --text:#e6edf3;
+    --accent:#4da3ff; --good:#4cd4a8; --warn:#f6c177; --bad:#ff6b6b;
+    --radius:18px; --shadow:0 12px 28px rgba(0,0,0,.35);
+    --section-bar:#274059;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; color:var(--text);
+    background: radial-gradient(1200px 800px at 6% -10%, #132338 0%, #0b0f14 60%);
+    font: 15px/1.6 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, "Helvetica Neue", Arial;
+  }
+  header{max-width:1200px;margin:26px auto 0;padding:0 18px}
+  h1{margin:0 0 6px; font-size:clamp(22px,4vw,36px)}
+  .sub{color:var(--muted)}
+  .wrap{max-width:1200px;margin:18px auto 34px;padding:0 18px;display:grid;gap:16px}
+  .grid-2{grid-template-columns:1.1fr .9fr}
+  .grid-3{grid-template-columns:repeat(3,1fr)}
+  .grid-kpi{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+  @media (max-width: 1000px){ .grid-2,.grid-3{grid-template-columns:1fr} }
+  .card{
+    background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.00));
+    border:1px solid rgba(255,255,255,.07);
+    border-radius:var(--radius); padding:16px; box-shadow:var(--shadow); backdrop-filter: blur(6px);
+  }
+  .section{
+    border-left: 6px solid var(--section-bar);
+    border-radius: 14px; overflow:hidden;
+  }
+  .section > .head{
+    padding:10px 14px; background:linear-gradient(90deg, rgba(255,255,255,.04), rgba(255,255,255,.01));
+    border-bottom:1px solid rgba(255,255,255,.06); font-weight:750; letter-spacing:.2px;
+    display:flex; gap:10px; align-items:center;
+  }
+  .section > .body{ padding:14px }
+  .kpi-val{font-size:26px;font-weight:800;letter-spacing:.2px}
+  .pill{ display:inline-flex;gap:6px;align-items:center;border-radius:999px;
+    border:1px solid rgba(255,255,255,.08); padding:6px 10px; font-size:12px; color:var(--muted)}
+  .ok{color:#aaf1c7;border-color:rgba(76,212,168,.35)}
+  .warn{color:#ffd08a;border-color:rgba(246,193,119,.35)}
+  .bad{color:#ff9b9b;border-color:rgba(255,107,107,.35)}
+  .row{display:grid;gap:10px;grid-template-columns:repeat(12,1fr)}
+  .row > *{grid-column: span 12}
+  @media (min-width: 860px){
+    .col-2{grid-column: span 2} .col-3{grid-column: span 3} .col-4{grid-column: span 4}
+    .col-5{grid-column: span 5} .col-6{grid-column: span 6} .col-7{grid-column: span 7}
+    .col-8{grid-column: span 8} .col-9{grid-column: span 9} .col-12{grid-column: span 12}
+  }
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+  input, select, textarea{
+    width:100%; background:#0a111a; color:var(--text);
+    border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:9px 11px; font:inherit; outline:none;
+  }
+  input[type="number"]{ text-align:right }
+  table{width:100%; border-collapse:collapse}
+  th, td{padding:8px; border-bottom:1px solid rgba(255,255,255,.08); text-align:left}
+  th.right, td.right{ text-align:right }
+  .btn{
+    display:inline-flex; align-items:center; gap:8px; cursor:pointer;
+    background:#0a111a; color:var(--text);
+    border:1px solid rgba(255,255,255,.1); border-radius:12px; padding:9px 12px; font-weight:600;
+  }
+  .btn:hover{border-color:rgba(77,163,255,.6)}
+  .muted{ color:var(--muted) }
+  .hint{ font-size:12px; color:var(--muted) }
+  .mini{ font-size:12px }
+  .flex{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .sticky-summary{
+    position: sticky; top:0; z-index:10; backdrop-filter: blur(6px);
+    background: rgba(5,10,15,.55); border-bottom: 1px solid rgba(255,255,255,.08);
+    padding:10px 18px; display:flex; flex-wrap:wrap; gap:8px; justify-content:center;
+  }
+  canvas{width:100%;height:360px}
+  footer{color:var(--muted);font-size:12px;text-align:center;margin:8px 0 36px}
+</style>
+</head>
+<body>
+<!-- Guarda: só deixa ver se estiver logado -->
+<script type="module">
+  // mesmas chaves do login.html
+  const firebaseConfig = {
+    apiKey: "AIzaSyA1nysatTzMGEwqiie5Yzm7vmhB4_LCZfY",
+    authDomain: "viabilidae-financeira.firebaseapp.com",
+    projectId: "viabilidae-financeira",
+    storageBucket: "viabilidae-financeira.firebasestorage.app",
+    messagingSenderId: "101170715584",
+    appId: "1:101170715584:web:be08e066365e1fb9d80625",
+    measurementId: "G-HV6QKXLLCD"
+  };
+
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  initializeApp(firebaseConfig);
+  const auth = getAuth();
+
+  // esconde a página até confirmar o login (evita "piscar")
+  document.documentElement.style.visibility = 'hidden';
+
+  onAuthStateChanged(auth, (user)=>{
+    if (!user) {
+      location.replace("login.html");
+    } else {
+      document.documentElement.style.visibility = 'visible';
+      // botão de sair (opcional): <button class="btn" onclick="gblogout()">Sair</button>
+      window.gblogout = ()=> signOut(auth).then(()=>location.replace("login.html"));
+    }
+  });
+</script>
+
+<header>
+  <h1>📈 Análise de Viabilidade Financeira</h1>
+  <div class="sub">Investimentos item a item, Produtos, Impostos, MO, Fixos, DRE, TMA, VPL & Paybacks • Crescimento & Sazonalidade • IA.</div>
+</header>
+
+<!-- Resumo fixo -->
+<div class="sticky-summary">
+  <span class="pill" id="sum_cf0">CF₀: –</span>
+  <span class="pill" id="sum_receita">Receita média/mês: –</span>
+  <span class="pill" id="sum_cv">C.V. + Impostos (médio): –</span>
+  <span class="pill" id="sum_fixos">Fixos (MO+op.)/mês: –</span>
+  <span class="pill" id="sum_res">Resultado médio/mês: –</span>
+</div>
+
+<!-- KPIs -->
+<section class="wrap grid-kpi">
+  <div class="card">
+    <h3>VPL (Valor Presente Líquido)</h3>
+    <div class="kpi-val" id="kpi_vpl">–</div>
+    <div class="flex">
+      <span class="pill" id="pill_tma_m">TMA: –</span>
+      <span class="pill" id="pill_tma_a">TMA a.a.: –</span>
+      <span class="pill" id="pill_horizonte">Horizonte: –</span>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Payback (simples)</h3>
+    <div class="kpi-val" id="kpi_pbs">–</div>
+    <div class="pill" id="pill_pbs">–</div>
+  </div>
+  <div class="card">
+    <h3>Payback (descontado)</h3>
+    <div class="kpi-val" id="kpi_pbd">–</div>
+    <div class="pill" id="pill_pbd">–</div>
+  </div>
+  <div class="card">
+    <h3>Diagnóstico rápido</h3>
+    <div id="diag_msg">–</div>
+  </div>
+</section>
+
+<!-- 1) Investimentos item a item -->
+<section class="wrap">
+  <div class="section card">
+    <div class="head">🧱 1) Investimentos — cadastre item a item (dica: descreva e informe o valor em R$)</div>
+    <div class="body">
+      <div class="row">
+        <!-- Fixos -->
+        <div class="col-4">
+          <div class="card" style="border-left:6px solid #4da3ff">
+            <h3>Fixos</h3>
+            <table id="tbl_inv_fixos">
+              <thead><tr><th>Item</th><th class="right">Valor (R$)</th><th></th></tr></thead>
+              <tbody></tbody>
+              <tfoot>
+                <tr>
+                  <td><input id="ixf_nome" placeholder="ex: Máquinas"/></td>
+                  <td><input id="ixf_val" type="number" step="0.01" class="right" placeholder="ex: 5000"/></td>
+                  <td><button class="btn" id="btn_add_ixf">Adicionar</button></td>
+                </tr>
+              </tfoot>
+            </table>
+            <div class="pill" id="pill_ixf">Total fixos: –</div>
+          </div>
+        </div>
+        <!-- Pré-op -->
+        <div class="col-4">
+          <div class="card" style="border-left:6px solid #7cd992">
+            <h3>Pré-operacionais</h3>
+            <table id="tbl_inv_pre">
+              <thead><tr><th>Item</th><th class="right">Valor (R$)</th><th></th></tr></thead>
+              <tbody></tbody>
+              <tfoot>
+                <tr>
+                  <td><input id="ixp_nome" placeholder="ex: Registro, projeto"/></td>
+                  <td><input id="ixp_val" type="number" step="0.01" class="right" placeholder="ex: 1200"/></td>
+                  <td><button class="btn" id="btn_add_ixp">Adicionar</button></td>
+                </tr>
+              </tfoot>
+            </table>
+            <div class="pill" id="pill_ixp">Total pré-op: –</div>
+          </div>
+        </div>
+        <!-- Estoque -->
+        <div class="col-4">
+          <div class="card" style="border-left:6px solid #f6c177">
+            <h3>Estoque inicial</h3>
+            <table id="tbl_inv_est">
+              <thead><tr><th>Item</th><th class="right">Valor (R$)</th><th></th></tr></thead>
+              <tbody></tbody>
+              <tfoot>
+                <tr>
+                  <td><input id="ixe_nome" placeholder="ex: Lote inicial"/></td>
+                  <td><input id="ixe_val" type="number" step="0.01" class="right" placeholder="ex: 3000"/></td>
+                  <td><button class="btn" id="btn_add_ixe">Adicionar</button></td>
+                </tr>
+              </tfoot>
+            </table>
+            <div class="pill" id="pill_ixe">Total estoque: –</div>
+          </div>
+        </div>
+      </div>
+      <div class="flex" style="margin-top:10px">
+        <button class="btn" id="btn_reset_inv">Zerar investimentos</button>
+        <div class="pill" id="pill_inv_total">Invest. total (CF₀): –</div>
+      </div>
+      <div class="hint" style="margin-top:6px">CF₀ (mês 0) = soma de <b>Fixos + Pré-op + Estoque</b>. Saída única antes do 1º mês operacional.</div>
+    </div>
+  </div>
+</section>
+
+<!-- 2/3) Produtos e 2b) Sazonalidade -->
+<section class="wrap">
+  <div class="section card">
+    <div class="head">🛒 2–3) Produtos (preço, quantidade, custo unit.) + crescimento • 2b) Sazonalidade</div>
+    <div class="body">
+      <div class="row">
+        <div class="col-12">
+          <div class="hint">Cadastre produtos com <b>preço</b>, <b>qtd/mês</b>, <b>custo unit.</b> e, se quiser, <b>crescimento mensal</b> de preço e quantidade (ex.: 0.02 = +2% a.m.).</div>
+          <table id="tbl_prod">
+            <thead>
+              <tr>
+                <th>Produto</th>
+                <th class="right">Preço (R$)</th>
+                <th class="right">Qtd/mês</th>
+                <th class="right">Custo unit. (R$)</th>
+                <th class="right">Cresc. preço</th>
+                <th class="right">Cresc. qtd</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot>
+              <tr>
+                <td><input id="p_nome" placeholder="ex: Plano Basic"></td>
+                <td><input id="p_preco" type="number" step="0.01" class="right" placeholder="ex: 65"></td>
+                <td><input id="p_qtd" type="number" step="1" class="right" placeholder="ex: 7"></td>
+                <td><input id="p_custo" type="number" step="0.01" class="right" placeholder="ex: 10"></td>
+                <td><input id="p_gpreco" type="number" step="0.0001" class="right" placeholder="ex: 0.02"></td>
+                <td><input id="p_gqtd" type="number" step="0.0001" class="right" placeholder="ex: 0.01"></td>
+                <td><button class="btn" id="btn_add_prod">Adicionar</button></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:10px">
+        <div class="col-4">
+          <label>Ativar sazonalidade</label>
+          <select id="sz_on">
+            <option value="off">Não aplicar</option>
+            <option value="on" selected>Aplicar</option>
+          </select>
+          <div class="hint">Aplica fatores mensais na <b>quantidade</b>.</div>
+        </div>
+        <div class="col-8">
+          <label>Fatores (12 números, separados por ,) — (dica) 1 mantém, 1,05 = +5% etc.</label>
+          <input id="sz_fatores" value="1,1,1,1,1,1,1,1,1,1,1,1">
+        </div>
+      </div>
+
+      <div class="flex" style="margin-top:10px">
+        <div class="pill" id="pill_receita_mensal">Receita média/mês: –</div>
+        <div class="pill" id="pill_cv_mensal">C.V. (prod) médio/mês: –</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 4) Impostos -->
+<section class="wrap grid-2">
+  <div class="section card">
+    <div class="head">💼 4) Comercialização / Impostos</div>
+    <div class="body">
+      <div class="row">
+        <div class="col-6">
+          <label>Regime</label>
+          <select id="regime">
+            <option value="simples" selected>Simples Nacional (% sobre receita)</option>
+            <option value="mei">MEI (valor fixo DAS)</option>
+            <option value="outro">Outro (% sobre receita)</option>
+          </select>
+        </div>
+        <div class="col-3">
+          <label>Alíquota (%)</label>
+          <input id="aliquota" type="number" step="0.0001" value="6">
+        </div>
+        <div class="col-3">
+          <label>DAS fixo (R$)</label>
+          <input id="das_fixo" type="number" step="0.01" placeholder="apenas para MEI">
+        </div>
+      </div>
+      <div class="pill" id="pill_imposto">Imposto médio/mês: –</div>
+      <div class="hint">Imposto mensal = <i>alíquota × receita</i> (regimes %) ou <i>DAS fixo</i> (MEI).</div>
+    </div>
+  </div>
+
+  <!-- 5/6) Mão de obra e Fixos -->
+  <div class="section card">
+    <div class="head">👥 5) Mão de obra (33,70% encargos) • 💡 6) Fixos operacionais</div>
+    <div class="body">
+      <div class="row">
+        <div class="col-12">
+          <table id="tbl_mo">
+            <thead><tr><th>Colaborador</th><th class="right">Salário-base (R$)</th><th class="right">Salário total (R$)</th><th></th></tr></thead>
+            <tbody></tbody>
+            <tfoot>
+              <tr>
+                <td><input id="m_nome" placeholder="ex: Atendente"></td>
+                <td><input id="m_sal" type="number" step="0.01" class="right" placeholder="ex: 1500"></td>
+                <td class="right muted mini">base × 1,337</td>
+                <td><button class="btn" id="btn_add_mo">Adicionar</button></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <div class="col-12" style="margin-top:8px">
+          <table id="tbl_fixos">
+            <thead><tr><th>Item</th><th class="right">Valor (R$)</th><th></th></tr></thead>
+            <tbody></tbody>
+            <tfoot>
+              <tr>
+                <td><input id="f_nome" placeholder="ex: Aluguel"></td>
+                <td><input id="f_val" type="number" step="0.01" class="right" placeholder="ex: 700"></td>
+                <td><button class="btn" id="btn_add_fixo">Adicionar</button></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+      <div class="flex" style="margin-top:8px">
+        <div class="pill" id="pill_mo">Mão de obra/mês: –</div>
+        <div class="pill" id="pill_fixos">Fixos operacionais/mês: –</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 7) DRE + 8/9) TMA/VPL/Paybacks -->
+<section class="wrap grid-2">
+  <div class="section card">
+    <div class="head">📑 7) DRE médio (no horizonte)</div>
+    <div class="body">
+      <table>
+        <tbody>
+          <tr><td>Receita média</td><td class="right" id="dre_receita">–</td></tr>
+          <tr><td>Custo variável médio (incl. impostos)</td><td class="right" id="dre_cv">–</td></tr>
+          <tr><td><b>Margem de contribuição média</b></td><td class="right" id="dre_mc">–</td></tr>
+          <tr><td>Fixos totais (MO + operacionais)</td><td class="right" id="dre_fixos">–</td></tr>
+          <tr><td><b>Resultado operacional médio</b></td><td class="right" id="dre_rop">–</td></tr>
+        </tbody>
+      </table>
+      <div class="hint">Usamos o <b>resultado operacional mensal</b> como aproximação de fluxo de caixa.</div>
+    </div>
+  </div>
+
+  <div class="section card">
+    <div class="head">🎯 8–9) Horizonte, TMA, VPL & Paybacks</div>
+    <div class="body">
+      <div class="row">
+        <div class="col-4"><label>Horizonte (meses)</label><input id="horizonte" type="number" value="12" min="1"></div>
+        <div class="col-4">
+          <label>Modo TMA</label>
+          <select id="tma_mode">
+            <option value="mensal">Mensal informada</option>
+            <option value="anual" selected>A partir da taxa anual</option>
+          </select>
+        </div>
+        <div class="col-4"><label>TMA mensal (a.m.)</label><input id="tma_m" type="number" step="0.0001" placeholder="ex: 0.01"></div>
+        <div class="col-4"><label>Taxa anual (a.a.)</label><input id="tma_a" type="number" step="0.0001" value="0.12"></div>
+        <div class="col-8"><label>Observação</label><input id="obs" placeholder="ex: Crescimento + sazonalidade aplicados; Simples 6%."></div>
+      </div>
+      <div class="flex" style="margin-top:8px">
+        <button class="btn" id="btn_recalcular">Recalcular</button>
+        <span class="pill" id="pill_cf0">CF₀: –</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Gráficos -->
+<section class="wrap grid-2">
+  <div class="section card">
+    <div class="head">📈 Receita x Custo x Resultado (séries)</div>
+    <div class="body"><canvas id="chart_line"></canvas></div>
+  </div>
+  <div class="section card">
+    <div class="head">📊 Fluxo acumulado (Payback)</div>
+    <div class="body"><canvas id="chart_bar"></canvas></div>
+  </div>
+</section>
+
+<!-- 10/12) Ajuda + IA -->
+<section class="wrap grid-2">
+  <div class="section card">
+    <div class="head">ℹ️ 10) Dicas rápidas</div>
+    <div class="body mini">
+      <ul style="margin:0 0 0 18px">
+        <li><b>Investimento total (CF₀)</b> = soma dos itens de <i>Fixos + Pré-op + Estoque</i>.</li>
+        <li><b>Receita</b> = Σ(preço × quantidade), com crescimento e sazonalidade.</li>
+        <li><b>CV</b> = Σ(custo unit. × quantidade) + <i>impostos</i> (alíquota % ou DAS fixo).</li>
+        <li><b>MC</b> = Receita − CV; <b>Fixos</b> = MO ×1,337 + operacionais.</li>
+        <li><b>Resultado</b> (aprox. fluxo) = MC − Fixos; Paybacks e VPL usam a série mensal.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="section card">
+    <div class="head">🤖 12) Análise com IA</div>
+    <div class="body">
+      <div class="hint">Heurística local (sem internet) ou API compatível com OpenAI (opcional).</div>
+      <div class="row">
+        <div class="col-12"><label>Modo</label>
+          <select id="ai_mode">
+            <option value="heuristica">Heurística local (offline)</option>
+            <option value="openai">API compatível com OpenAI</option>
+          </select>
+        </div>
+        <div class="col-6"><label>Endpoint</label><input id="ai_endpoint" placeholder="https://api.openai.com/v1/chat/completions"></div>
+        <div class="col-6"><label>Modelo</label><input id="ai_model" value="gpt-4o-mini"></div>
+        <div class="col-12"><label>API Key</label><input id="ai_key" type="password" placeholder="cole sua chave (fica local no navegador)"></div>
+      </div>
+      <div class="flex" style="margin-top:8px">
+        <button class="btn" id="btn_ai">Analisar com IA</button>
+        <span class="muted mini">Sua chave só é usada nesta página.</span>
+      </div>
+      <div id="ai_output" class="muted" style="margin-top:8px; white-space:pre-wrap"></div>
+    </div>
+  </div>
+</section>
+
+<footer>Visual leve com Chart.js (CDN única). Sem frameworks pesados.</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script type="module">
+  // Reaproveita a mesma instância de app/auth criada pelo guard (o Firebase só inicializa 1x)
+  import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getFirestore, collection, query, where, orderBy, addDoc, getDocs, deleteDoc, doc, updateDoc }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  // Pega instâncias iniciais (o app já foi inicializado no guard)
+  const auth = getAuth();
+  const db = getFirestore();
+
+  // ===== AJUSTE AQUI: pegue elementos da sua UI (nome do cenário e lista) =====
+  const $ = s => document.querySelector(s);
+  const sel = $('#gb-scn-select') || (()=>{ const d=document.createElement('select'); return d; })();
+  const inputName = $('#gb-scn-name') || (()=>{ const d=document.createElement('input'); return d; })();
+
+  async function listScenarios(){
+    const user = auth.currentUser;
+    if (!user) return [];
+    const q = query(collection(db, "scenarios"), where("ownerId","==", user.uid), orderBy("updatedAt","desc"));
+    const snap = await getDocs(q);
+    return snap.docs.map(d=>({ id:d.id, ...d.data() }));
+  }
+
+  async function saveScenario(obj, id=null){
+    const user = auth.currentUser;
+    if (!user) throw new Error("Não autenticado.");
+    const data = { ...obj, ownerId:user.uid, updatedAt:Date.now(), ...(id?{}:{createdAt:Date.now()}) };
+    if (id){ await updateDoc(doc(db,"scenarios",id), data); return id; }
+    const ref = await addDoc(collection(db,"scenarios"), data); return ref.id;
+  }
+
+  async function removeScenario(id){
+    const user = auth.currentUser;
+    if (!user) throw new Error("Não autenticado.");
+    await deleteDoc(doc(db,"scenarios",id));
+  }
+
+  // ===== Exponha funções simples para o seu script grande usar =====
+  window.FBListScenarios = listScenarios;
+  window.FBSaveScenario  = saveScenario;
+  window.FBRemoveScenario= removeScenario;
+
+  // (Opcional) helper para popular um <select>
+  window.FBRefreshSelect = async ()=>{
+    if (!sel) return;
+    sel.innerHTML = '<option value="">—</option>';
+    const list = await listScenarios();
+    list.forEach(it=>{
+      const o = document.createElement('option');
+      o.value = it.id;
+      o.textContent = `${it.name||'(sem nome)'} — ${new Date(it.updatedAt||0).toLocaleString()}`;
+      o.dataset.data = JSON.stringify(it);
+      sel.appendChild(o);
+    });
+  };
+
+  // Se quiser, já popula ao abrir:
+  document.addEventListener('DOMContentLoaded', ()=> window.FBRefreshSelect?.());
+</script>
+
+<script>
+// === Monta objeto do cenário atual (AJUSTE AQUI se quiser mais/menos campos) ===
+function buildScenarioFromUI(){
+  return {
+    name: (document.querySelector('#gb-scn-name')?.value || 'Cenário'),
+    invFixos: [...invFixos], invPre: [...invPre], invEst: [...invEst],
+    prods: [...prods], maoObra: [...maoObra], fixos: [...fixos],
+    sazOn: (document.querySelector('#sz_on').value==='on'),
+    sazFatores: document.querySelector('#sz_fatores').value,
+    regime: document.querySelector('#regime').value,
+    aliquota: Number(document.querySelector('#aliquota').value||0),
+    dasFixo: Number(document.querySelector('#das_fixo').value||0),
+    horizonte: Number(document.querySelector('#horizonte').value||12),
+    tmaMode: document.querySelector('#tma_mode').value,
+    tma_m: Number(document.querySelector('#tma_m').value||0),
+    tma_a: Number(document.querySelector('#tma_a').value||0),
+    obs: document.querySelector('#obs').value||''
+  };
+}
+
+// === Aplica cenário salvo na tela ===
+function applyScenarioToUI(data){
+  invFixos.length=0; invPre.length=0; invEst.length=0; prods.length=0; maoObra.length=0; fixos.length=0;
+  (data.invFixos||[]).forEach(x=>invFixos.push(x));
+  (data.invPre||[]).forEach(x=>invPre.push(x));
+  (data.invEst||[]).forEach(x=>invEst.push(x));
+  (data.prods||[]).forEach(x=>prods.push(x));
+  (data.maoObra||[]).forEach(x=>maoObra.push(x));
+  (data.fixos||[]).forEach(x=>fixos.push(x));
+  document.querySelector('#sz_on').value = data.sazOn ? 'on':'off';
+  if (data.sazFatores) document.querySelector('#sz_fatores').value = data.sazFatores;
+  if (data.regime) document.querySelector('#regime').value = data.regime;
+  if (!Number.isNaN(data.aliquota)) document.querySelector('#aliquota').value = data.aliquota;
+  if (!Number.isNaN(data.dasFixo))  document.querySelector('#das_fixo').value = data.dasFixo;
+  if (!Number.isNaN(data.horizonte)) document.querySelector('#horizonte').value = data.horizonte;
+  if (data.tmaMode) document.querySelector('#tma_mode').value = data.tmaMode;
+  if (!Number.isNaN(data.tma_m)) document.querySelector('#tma_m').value = data.tma_m;
+  if (!Number.isNaN(data.tma_a)) document.querySelector('#tma_a').value = data.tma_a;
+  if (typeof data.obs==='string') document.querySelector('#obs').value = data.obs;
+  const nm = document.querySelector('#gb-scn-name'); if (nm) nm.value = data.name || '';
+  // atualiza tabelas e gráficos
+  refreshInvestments(); refreshProd(); refreshMO(); refreshFixos(); recompute();
+}
+
+// === Botões (se você tiver IDs gb-scn-save/load/del) ===
+document.querySelector('#gb-scn-save')?.addEventListener('click', async ()=>{
+  try{
+    const id = await window.FBSaveScenario(buildScenarioFromUI());
+    await window.FBRefreshSelect?.(); alert('Cenário salvo!');
+  }catch(e){ alert('Erro: '+(e.code||e.message)); }
+});
+document.querySelector('#gb-scn-load')?.addEventListener('click', ()=>{
+  const sel = document.querySelector('#gb-scn-select');
+  if (!sel?.value) return alert('Selecione um cenário.');
+  const data = JSON.parse(sel.selectedOptions[0].dataset.data || '{}');
+  applyScenarioToUI(data);
+});
+document.querySelector('#gb-scn-del')?.addEventListener('click', async ()=>{
+  const sel = document.querySelector('#gb-scn-select');
+  if (!sel?.value) return alert('Selecione um cenário.');
+  if (!confirm('Excluir este cenário?')) return;
+  try{ await window.FBRemoveScenario(sel.value); await window.FBRefreshSelect?.(); alert('Excluído.'); }
+  catch(e){ alert('Erro: '+(e.code||e.message)); }
+});
+  // ===== util =====
+  const $ = (s)=>document.querySelector(s);
+  const money = (x)=> Number(x||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+  const pct = (x)=> (Number(x)*100).toFixed(2) + '%';
+  const encargo = 0.337;
+
+  function npv(rate, cfs){ return cfs.reduce((acc,cf,i)=> acc + cf/Math.pow(1+rate, i), 0); }
+  function pbSimple(cfs){ let cum=0; for(let i=0;i<cfs.length;i++){ cum+=cfs[i]; if(cum>=0){ const prev=cum-cfs[i]; const frac=cfs[i]!==0?(0-prev)/cfs[i]:0; return (i-1)+frac; } } return null; }
+  function pbDisc(rate,cfs){ let cum=0; for(let i=0;i<cfs.length;i++){ const dv=cfs[i]/Math.pow(1+rate,i); cum+=dv; if(cum>=0){ const prev=cum-dv; const frac=dv!==0?(0-prev)/dv:0; return (i-1)+frac; } } return null; }
+  function fmtPB(x){ if(x===null) return 'Não recupera'; const m=Math.max(0,x); const mi=Math.floor(m); const dias=Math.round((m-mi)*30); return mi+' meses'+(dias?(' e '+dias+' dias'):''); }
+  function parseSeasonality(text){ const arr=(text||'').split(',').map(s=>Number(String(s).trim())).filter(v=>!Number.isNaN(v)); const base=(arr.length===12?arr:[]).map(v=>v>0?v:1); return base.length===12?base:Array.from({length:12},()=>1); }
+
+  // ===== estado =====
+  const invFixos=[], invPre=[], invEst=[];  // {nome, val}
+  const prods=[];                            // {nome, preco, qtd, custo, gpreco, gqtd}
+  const maoObra=[];                          // {nome, sal_base}
+  const fixos=[];                            // {nome, val}
+  let charts={line:null, bar:null};
+
+  // ===== helpers UI =====
+  function buildTable(tbody, arr, type){
+    tbody.innerHTML='';
+    arr.forEach((it,i)=>{
+      const tr=document.createElement('tr');
+      tr.innerHTML=`<td>${it.nome||'-'}</td><td class="right">${money(it.val||0)}</td>
+        <td class="right"><button class="btn" data-type="${type}" data-idx="${i}">Remover</button></td>`;
+      tbody.appendChild(tr);
+    });
+    tbody.querySelectorAll('button[data-type]').forEach(btn=>{
+      btn.onclick=()=>{
+        const type=btn.dataset.type, idx=Number(btn.dataset.idx);
+        (type==='ixf'?invFixos:(type==='ixp'?invPre:invEst)).splice(idx,1);
+        refreshInvestments(); recompute();
+      }
+    });
+  }
+  function refreshInvestments(){
+    buildTable($('#tbl_inv_fixos tbody'), invFixos, 'ixf');
+    buildTable($('#tbl_inv_pre tbody'),  invPre,  'ixp');
+    buildTable($('#tbl_inv_est tbody'),  invEst,  'ixe');
+    const sum = (arr)=> arr.reduce((s,a)=> s+Number(a.val||0),0);
+    const sFixos=sum(invFixos), sPre=sum(invPre), sEst=sum(invEst);
+    $('#pill_ixf').textContent = 'Total fixos: ' + money(sFixos);
+    $('#pill_ixp').textContent = 'Total pré-op: ' + money(sPre);
+    $('#pill_ixe').textContent = 'Total estoque: ' + money(sEst);
+    const inv_total = sFixos + sPre + sEst;
+    $('#pill_inv_total').textContent = 'Invest. total (CF₀): ' + money(inv_total);
+    $('#pill_cf0').textContent = 'CF₀: ' + money(-inv_total);
+    $('#sum_cf0').textContent = 'CF₀: ' + money(-inv_total);
+  }
+  function refreshProd(){
+    const tbP=$('#tbl_prod tbody'); tbP.innerHTML='';
+    prods.forEach((p,i)=>{
+      const tr=document.createElement('tr');
+      tr.innerHTML=`
+        <td>${p.nome||'-'}</td>
+        <td class="right">${money(p.preco)}</td>
+        <td class="right">${Number(p.qtd||0)}</td>
+        <td class="right">${money(p.custo)}</td>
+        <td class="right">${(Number(p.gpreco||0)*100).toFixed(2)}%</td>
+        <td class="right">${(Number(p.gqtd||0)*100).toFixed(2)}%</td>
+        <td class="right"><button class="btn" data-delp="${i}">Remover</button></td>`;
+      tbP.appendChild(tr);
+    });
+    tbP.querySelectorAll('button[data-delp]').forEach(b=> b.onclick=()=>{ prods.splice(Number(b.dataset.delp),1); recompute(); });
+  }
+  function refreshMO(){
+    const tbM=$('#tbl_mo tbody'); tbM.innerHTML='';
+    maoObra.forEach((m,i)=>{
+      const total=Number(m.sal_base||0)*(1+encargo);
+      const tr=document.createElement('tr');
+      tr.innerHTML=`
+        <td>${m.nome||'-'}</td>
+        <td class="right">${money(m.sal_base)}</td>
+        <td class="right">${money(total)}</td>
+        <td class="right"><button class="btn" data-delm="${i}">Remover</button></td>`;
+      tbM.appendChild(tr);
+    });
+    tbM.querySelectorAll('button[data-delm]').forEach(b=> b.onclick=()=>{ maoObra.splice(Number(b.dataset.delm),1); recompute(); });
+  }
+  function refreshFixos(){
+    const tbF=$('#tbl_fixos tbody'); tbF.innerHTML='';
+    fixos.forEach((f,i)=>{
+      const tr=document.createElement('tr');
+      tr.innerHTML=`
+        <td>${f.nome||'-'}</td>
+        <td class="right">${money(f.val)}</td>
+        <td class="right"><button class="btn" data-delf="${i}">Remover</button></td>`;
+      tbF.appendChild(tr);
+    });
+    tbF.querySelectorAll('button[data-delf]').forEach(b=> b.onclick=()=>{ fixos.splice(Number(b.dataset.delf),1); recompute(); });
+  }
+
+  // ===== ações: adicionar itens =====
+  $('#btn_add_ixf').onclick=()=>{ const nome=$('#ixf_nome').value.trim(); const val=Number($('#ixf_val').value||0); if(nome||val){ invFixos.push({nome,val}); $('#ixf_nome').value=''; $('#ixf_val').value=''; refreshInvestments(); recompute(); } };
+  $('#btn_add_ixp').onclick=()=>{ const nome=$('#ixp_nome').value.trim(); const val=Number($('#ixp_val').value||0); if(nome||val){ invPre.push({nome,val}); $('#ixp_nome').value=''; $('#ixp_val').value=''; refreshInvestments(); recompute(); } };
+  $('#btn_add_ixe').onclick=()=>{ const nome=$('#ixe_nome').value.trim(); const val=Number($('#ixe_val').value||0); if(nome||val){ invEst.push({nome,val}); $('#ixe_nome').value=''; $('#ixe_val').value=''; refreshInvestments(); recompute(); } };
+  $('#btn_reset_inv').onclick=()=>{ invFixos.length=0; invPre.length=0; invEst.length=0; refreshInvestments(); recompute(); };
+
+  $('#btn_add_prod').onclick=()=>{
+    const nome=$('#p_nome').value.trim();
+    const preco=Number($('#p_preco').value||0);
+    const qtd=Number($('#p_qtd').value||0);
+    const custo=Number($('#p_custo').value||0);
+    const gpreco=Number($('#p_gpreco').value||0);
+    const gqtd=Number($('#p_gqtd').value||0);
+    prods.push({nome,preco,qtd,custo,gpreco,gqtd});
+    $('#p_nome').value=$('#p_preco').value=$('#p_qtd').value=$('#p_custo').value=$('#p_gpreco').value=$('#p_gqtd').value='';
+    refreshProd(); recompute();
+  };
+  $('#btn_add_mo').onclick=()=>{ const nome=$('#m_nome').value.trim(); const sal=Number($('#m_sal').value||0); maoObra.push({nome, sal_base:sal}); $('#m_nome').value=$('#m_sal').value=''; refreshMO(); recompute(); };
+  $('#btn_add_fixo').onclick=()=>{ const nome=$('#f_nome').value.trim(); const val=Number($('#f_val').value||0); fixos.push({nome,val}); $('#f_nome').value=$('#f_val').value=''; refreshFixos(); recompute(); };
+
+  // ===== núcleo de cálculo =====
+  function getTMA(){
+    const modo=$('#tma_mode').value, tm=Number($('#tma_m').value||0), ta=Number($('#tma_a').value||0);
+    if(modo==='mensal' && tm>0) return tm;
+    if(ta>0) return Math.pow(1+ta,1/12)-1;
+    return 0.01; // fallback
+  }
+  function computeSeries(H){
+    const szOn=$('#sz_on').value==='on';
+    const sz=parseSeasonality($('#sz_fatores').value);
+    const receita=Array(H).fill(0), cv_prod=Array(H).fill(0);
+
+    prods.forEach(p=>{
+      const baseP=Number(p.preco||0), baseQ=Number(p.qtd||0), baseC=Number(p.custo||0),
+            gp=Number(p.gpreco||0), gq=Number(p.gqtd||0);
+      for(let t=0;t<H;t++){
+        const price=baseP*Math.pow(1+gp,t);
+        const qty=baseQ*Math.pow(1+gq,t)*(szOn?sz[t%12]:1);
+        receita[t]+= price*qty;
+        cv_prod[t]+= baseC*qty;
+      }
+    });
+
+    const regime=$('#regime').value, aliq=Number($('#aliquota').value||0)/100, das=Number($('#das_fixo').value||0);
+    const imposto=receita.map(r=> regime==='mei'? das : r*aliq);
+    const cv_total=cv_prod.map((cv,i)=> cv+imposto[i]);
+
+    const mo_total=maoObra.reduce((s,m)=> s+Number(m.sal_base||0)*(1+encargo),0);
+    const fixos_total=fixos.reduce((s,f)=> s+Number(f.val||0),0);
+
+    const mc=receita.map((r,i)=> r-cv_total[i]);
+    const rop=mc.map(v=> v-(mo_total+fixos_total));
+
+    return { receita, cv_prod, imposto, cv_total, mo_total, fixos_total, mc, rop };
+  }
+  function recompute(){
+    const H=Math.max(1, Number($('#horizonte').value||12));
+    const tma=getTMA(), tmaAA=Math.pow(1+tma,12)-1;
+    $('#pill_tma_m').textContent='TMA: '+pct(tma)+' a.m.';
+    $('#pill_tma_a').textContent='TMA a.a.: '+pct(tmaAA);
+    $('#pill_horizonte').textContent='Horizonte: '+H+' meses';
+
+    const inv_total = invFixos.reduce((s,a)=>s+Number(a.val||0),0)
+                     + invPre.reduce((s,a)=>s+Number(a.val||0),0)
+                     + invEst.reduce((s,a)=>s+Number(a.val||0),0);
+    $('#pill_cf0').textContent='CF₀: '+money(-inv_total);
+    $('#sum_cf0').textContent='CF₀: '+money(-inv_total);
+
+    const s=computeSeries(H);
+    const avg = arr => (arr.reduce((a,b)=>a+b,0)/arr.length)||0;
+
+    $('#pill_receita_mensal').textContent='Receita média/mês: '+money(avg(s.receita));
+    $('#pill_cv_mensal').textContent='C.V. (prod) médio/mês: '+money(avg(s.cv_prod));
+    $('#pill_imposto').textContent='Imposto médio/mês: '+money(avg(s.imposto));
+    $('#pill_mo').textContent='Mão de obra/mês: '+money(s.mo_total);
+    $('#pill_fixos').textContent='Fixos op./mês: '+money(s.fixos_total);
+
+    $('#dre_receita').textContent=money(avg(s.receita));
+    $('#dre_cv').textContent=money(avg(s.cv_total));
+    $('#dre_mc').textContent=money(avg(s.mc));
+    $('#dre_fixos').textContent=money(s.mo_total+s.fixos_total);
+    $('#dre_rop').textContent=money(avg(s.rop));
+
+    $('#sum_receita').textContent='Receita média/mês: '+money(avg(s.receita));
+    $('#sum_cv').textContent='C.V.+Imp (médio): '+money(avg(s.cv_total));
+    $('#sum_fixos').textContent='Fixos/mês: '+money(s.mo_total+s.fixos_total);
+    $('#sum_res').textContent='Resultado/mês: '+money(avg(s.rop));
+
+    const cfs=[-inv_total, ...s.rop];
+    const vpl=npv(tma,cfs), pbs=pbSimple(cfs), pbd=pbDisc(tma,cfs);
+    $('#kpi_vpl').textContent=money(vpl);
+    $('#kpi_pbs').textContent=fmtPB(pbs);
+    $('#kpi_pbd').textContent=fmtPB(pbd);
+
+    const diag=$('#diag_msg'); const pillS=$('#pill_pbs'); const pillD=$('#pill_pbd');
+    pillS.classList.remove('ok','warn','bad'); pillD.classList.remove('ok','warn','bad');
+    if(vpl>0){ diag.innerHTML='✅ <b>VPL positivo.</b> Projeto cria valor acima da TMA.'; pillS.textContent='Tende a recuperar (simples)'; pillS.classList.add('ok'); pillD.textContent='Tende a recuperar (descontado)'; pillD.classList.add('ok'); }
+    else if(Math.abs(vpl)<Math.max(1, inv_total*0.05)){ diag.innerHTML='🟨 <b>VPL próximo de zero.</b> Pequenos ajustes podem viabilizar.'; pillS.textContent='Equilíbrio próximo'; pillS.classList.add('warn'); pillD.textContent='Equilíbrio próximo'; pillD.classList.add('warn'); }
+    else{ diag.innerHTML='🟥 <b>VPL negativo.</b> Revise ticket, volume, custos e impostos.'; pillS.textContent='Recuperação incerta'; pillS.classList.add('bad'); pillD.textContent='Recuperação incerta'; pillD.classList.add('bad'); }
+
+    // gráficos
+    const labels=['CF₀', ...Array.from({length:H},(_,i)=>`M${i+1}`)];
+    let acc=-inv_total; const cumul=[acc]; for(let i=0;i<H;i++){ acc+=s.rop[i]; cumul.push(acc); }
+    const receitaSerie=[0, ...s.receita], cvSerie=[0, ...s.cv_total], ropSerie=[-inv_total, ...s.rop];
+
+    if(charts.line) charts.line.destroy();
+    if(charts.bar) charts.bar.destroy();
+
+    charts.line = new Chart($('#chart_line').getContext('2d'), {
+      type:'line',
+      data:{ labels, datasets:[
+        {label:'Receita', data:receitaSerie, tension:.3, borderWidth:2, pointRadius:0},
+        {label:'Custo variável + impostos', data:cvSerie, tension:.3, borderWidth:2, pointRadius:0},
+        {label:'Resultado operacional', data:ropSerie, tension:.25, borderDash:[6,6], borderWidth:2, pointRadius:0}
+      ]},
+      options:{ responsive:true, interaction:{mode:'index',intersect:false},
+        plugins:{ legend:{display:true}, tooltip:{callbacks:{label:(c)=> c.dataset.label+': '+money(c.parsed.y)}}},
+        scales:{ y:{ ticks:{ callback:(v)=> money(v) } } }
+      }
+    });
+
+    charts.bar = new Chart($('#chart_bar').getContext('2d'), {
+      type:'bar',
+      data:{ labels, datasets:[{label:'Fluxo acumulado', data:cumul, borderWidth:1}]},
+      options:{ responsive:true, plugins:{ legend:{display:true}, tooltip:{callbacks:{label:(c)=> 'Acumulado: '+money(c.parsed.y)}}},
+        scales:{ y:{ ticks:{ callback:(v)=> money(v) } } } }
+    });
+
+    return {inv_total,H,tma,tmaAA, ...s, vpl,pbs,pbd};
+  }
+
+  // ===== IA =====
+  async function analyzeAI(snapshot){
+    const mode=$('#ai_mode').value, out=$('#ai_output');
+    const resumo=`
+Horizonte: ${snapshot.H} meses | TMA a.m.: ${(snapshot.tma*100).toFixed(2)}% (a.a. ${(snapshot.tmaAA*100).toFixed(2)}%)
+CF0: ${snapshot.inv_total} | Receita média: ${(snapshot.receita.reduce((a,b)=>a+b,0)/snapshot.receita.length)||0}
+CV+Imp médio: ${(snapshot.cv_total.reduce((a,b)=>a+b,0)/snapshot.cv_total.length)||0}
+MC média: ${(snapshot.mc.reduce((a,b)=>a+b,0)/snapshot.mc.length)||0}
+Fixos (MO+op.): ${snapshot.mo_total + snapshot.fixos_total}
+Resultado médio: ${(snapshot.rop.reduce((a,b)=>a+b,0)/snapshot.rop.length)||0}
+VPL: ${snapshot.vpl} | PB simples: ${snapshot.pbs===null?'NR':snapshot.pbs.toFixed(2)} | PB descontado: ${snapshot.pbd===null?'NR':snapshot.pbd.toFixed(2)}
+Escreva um parecer curto com 3 alavancas (preço/volume/custo) e um plano de ação.
+`.trim();
+    if(mode==='heuristica'){
+      let msg='Parecer (heurístico):\n';
+      msg+= snapshot.vpl>0? '• VPL positivo.\n' : (Math.abs(snapshot.vpl)<Math.max(1,snapshot.inv_total*0.05)?'• VPL próximo de zero.\n':'• VPL negativo.\n');
+      msg+= `• Resultado médio: ${money((snapshot.rop.reduce((a,b)=>a+b,0)/snapshot.rop.length)||0)}; Fixos: ${money(snapshot.mo_total+snapshot.fixos_total)}; MC: ${money((snapshot.mc.reduce((a,b)=>a+b,0)/snapshot.mc.length)||0)}.\n`;
+      msg+='Alavancas: (1) Ajustar ticket/mix (+3–10% seletivo), (2) Reduzir custos unit./operacionais (−5–12%), (3) Escalar volume com CAC controlado.\n';
+      msg+='Plano: Rodar 3 cenários (preço/custo/volume), revisar regime/aliquota, metas mensais e acompanhamento do acumulado.\n';
+      out.textContent=msg; return;
+    }
+    const endpoint=$('#ai_endpoint').value||'https://api.openai.com/v1/chat/completions';
+    const model=$('#ai_model').value||'gpt-4o-mini';
+    const key=$('#ai_key').value.trim();
+    if(!key){ out.textContent='Cole sua API key para usar este modo.'; return; }
+    out.textContent='Consultando IA...';
+    try{
+      const resp=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+        body:JSON.stringify({model, messages:[{role:'system',content:'Você é um analista financeiro objetivo.'},{role:'user',content:resumo}], temperature:0.2})});
+      const js=await resp.json(); const text=js.choices?.[0]?.message?.content || JSON.stringify(js,null,2);
+      out.textContent=text;
+    }catch(e){ out.textContent='Falha na chamada de IA: '+e.message; }
+  }
+
+  // ===== eventos =====
+  $('#btn_recalcular').onclick=()=>recompute();
+  $('#btn_ai').onclick=()=>analyzeAI(recompute());
+
+  // inicial
+  refreshInvestments(); refreshProd(); refreshMO(); refreshFixos();
+  recompute();
+</script>
+</body>
+</html>
